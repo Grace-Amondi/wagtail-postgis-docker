@@ -1,0 +1,56 @@
+version: '3'
+
+services:
+  my_cms_web:
+    container_name: my_cms_web
+    build: 
+        context: .
+        dockerfile: Dockerfile
+    restart: on-failure
+    command: gunicorn wagtail_postgis_docker.wsgi:application --bind 0.0.0.0:8000
+    expose:
+      - 8000
+    environment: 
+      - DB_PORT_CMS=5432
+      - DB_NAME_CMS=${DB_NAME_CMS}
+      - DB_PASSWORD_CMS=${DB_PASSWORD_CMS}
+      - DB_USER_CMS=${DB_USER_CMS}
+      - DB_HOST_CMS=${DB_HOST_CMS}
+      - ENVIRONMENT=${ENVIRONMENT}
+    depends_on:
+      - my_cms_db
+    volumes:
+      - static_volume:/home/app/web/static
+      - media_volume:/home/app/web/media
+     
+  my_cms_db:
+    container_name: my_cms_db
+    image: postgis/postgis:12-master
+    restart: always
+    environment: 
+      - POSTGRES_USER=${DB_USER_CMS}
+      - POSTGRES_DB=${DB_NAME_CMS}
+      - POSTGRES_PASSWORD=${DB_PASSWORD_CMS}
+    ports: 
+      - ${DB_PORT_CMS}:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+
+
+  nginx:
+    container_name: my_cms_nginx
+    image: nginx:1.18.0-alpine
+    volumes:
+      - static_volume:/wagtail_static
+      - media_volume:/wagtail_media
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - ${CMS_PORT}:80
+    depends_on:
+      - my_cms_web
+      
+      
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
